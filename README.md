@@ -175,6 +175,159 @@ CLIENT_ID = 'client1'
 * [ ] Docker 镜像一键部署
 
 ---
+当然！我帮你把这段部署文档内容重新排版优化成清晰、格式统一、适合直接放到 GitHub README 或文档里的版本，方便阅读和使用。
+
+---
+
+# Reverse-TCP 代理服务部署指南
+
+## 1. 克隆代码仓库
+
+```bash
+git clone https://github.com/5777033/reverse-tcp.git
+```
+
+---
+
+## 2. 服务端部署
+
+### 2.1 创建服务端目录并移动文件
+
+```bash
+sudo mkdir -p /opt/proxy-server
+mv server.py /opt/proxy-server/
+```
+
+### 2.2 配置 systemd 服务 (`/etc/systemd/system/proxy-server.service`)
+
+```ini
+[Unit]
+Description=Secure Reverse Proxy Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/proxy-server
+ExecStart=/usr/bin/python3 /opt/proxy-server/server.py
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 2.3 启动服务
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable proxy-server
+sudo systemctl start proxy-server
+```
+
+### 2.4 查看服务日志
+
+```bash
+journalctl -u proxy-server -f
+```
+
+---
+
+## 3. 客户端部署
+
+### 3.1 创建客户端目录并移动文件
+
+```bash
+sudo mkdir -p /opt/proxy-client
+mv client.py /opt/proxy-client/
+```
+
+### 3.2 配置 systemd 服务 (`/etc/systemd/system/proxy-client.service`)
+
+```ini
+[Unit]
+Description=Secure Reverse Proxy Client
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/proxy-client
+ExecStart=/usr/bin/python3 /opt/proxy-client/client.py
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 3.3 启动客户端服务
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable proxy-client
+sudo systemctl start proxy-client
+```
+
+### 3.4 查看客户端日志
+
+```bash
+journalctl -u proxy-client -f
+```
+
+---
+
+## 4. 防火墙配置
+
+### 4.1 服务端防火墙设置
+
+允许客户端 IP 访问服务端端口（示例端口 6001-6004）：
+
+```bash
+sudo ufw allow from <客户端IP> to any port 6001:6004
+```
+
+### 4.2 客户端防火墙设置
+
+确保本地需要代理的端口可访问，例如 SSH 和 HTTP：
+
+```bash
+sudo ufw allow 22/tcp   # SSH
+sudo ufw allow 80/tcp   # HTTP
+```
+
+---
+
+## 5. 验证与测试
+
+### 5.1 测试 SSH 连接
+
+```bash
+ssh -p 6001 user@your.server.ip
+```
+
+### 5.2 查看端口监听状态
+
+服务端查看监听端口：
+
+```bash
+ss -tulnp | grep 600
+```
+
+客户端查看本地端口状态：
+
+```bash
+ss -tulnp | grep -E '22|80|3306|5432'
+```
+
+### 5.3 重启服务
+
+```bash
+sudo systemctl restart proxy-server
+sudo systemctl restart proxy-client
+```
 
 ## 📝 License
 
@@ -187,3 +340,5 @@ MIT License
 * 基于 Python3 开发
 * 简易 FRP 替代方案
 * 仅供学习交流使用，请勿用于非法用途
+
+
