@@ -10,7 +10,7 @@ SERVER_PORT = 6000
 CLIENT_ID = 'client1'
 PROXY_TO_LOCAL_PORT = {6001: 22, 6002: 80}
 
-FERNET_KEY = b'6aUXWau3OKQ5mV-M5g5CkZxep_t8XzxxUQ_G8GgpNto='  # 与服务器端一致
+FERNET_KEY = b'6aUXWau3OKQ5mV-M5g5CkZep_t8XzxxUQ_G8GgpNto='  # 与服务器端一致
 cipher = Fernet(FERNET_KEY)
 
 
@@ -22,7 +22,7 @@ def decrypt(data):
     return cipher.decrypt(data)
 
 
-def forward(s1, s2):
+def forward(s1, s2, port):
     try:
         while True:
             data = s1.recv(4096)
@@ -30,7 +30,7 @@ def forward(s1, s2):
                 break
             s2.sendall(data)
     except Exception as e:
-        logging.debug(f"forward 连接异常或关闭: {e}")
+        logging.debug(f"[端口 {port}] forward 连接异常或关闭: {e}")
     finally:
         try:
             s1.shutdown(socket.SHUT_RD)
@@ -42,6 +42,7 @@ def forward(s1, s2):
             pass
         s1.close()
         s2.close()
+        logging.info(f"[端口 {port}] 连接关闭通知")
 
 
 def handle_new_conn(proxy_port):
@@ -68,8 +69,8 @@ def handle_new_conn(proxy_port):
         local.close()
         return
 
-    threading.Thread(target=forward, args=(data_sock, local), daemon=True).start()
-    threading.Thread(target=forward, args=(local, data_sock), daemon=True).start()
+    threading.Thread(target=forward, args=(data_sock, local, proxy_port), daemon=True).start()
+    threading.Thread(target=forward, args=(local, data_sock, proxy_port), daemon=True).start()
 
 
 def listen_control():
