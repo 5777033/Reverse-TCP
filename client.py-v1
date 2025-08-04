@@ -1,0 +1,81 @@
+root@inspur:/data/Reverse-TCP# cat client.py
+import socket
+import threading
+import logging
+import traceback
+
+logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s][%(levelname)s] %(message)s')     
+
+SERVER_IP = 'Public IP'
+CONTROL_PORT = 6000
+DATA_PORT = 6005
+CLIENT_ID = 'client1'
+
+PROXY_TO_LOCAL_PORT = {6001: 22, 6002: 80}
+
+def forward(s1, s2, name):
+    try:
+        while True:
+            data = s1.recv(4096)
+            if not data:
+                logging.debug(f"{name} 连接关闭")
+                break
+            logging.debug(f"{name} 转发 {len(data)} 字节")
+            s2.sendall(data)
+    except Exception as e:
+        logging.error(f"forward出错 {name}: {e}")
+    finally:
+        s1.close()
+        s2.close()
+
+def handle_new_conn(proxy_port):
+    local_port = PROXY_TO_LOCAL_PORT.get(proxy_port)
+    if not local_port:
+        logging.error(f"未知端口映射 {proxy_port}")
+        return
+    try:
+        local = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        local.connect(('127.0.0.1', local_port))
+        logging.debug(f"已连接本地服务 {local_port}")
+    except Exception as e:
+        logging.error(f"无法连接本地服务 {local_port}: {e}")
+        return
+    try:
+        data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        data_sock.settimeout(10)  # 10秒连接超时
+        logging.debug(f"尝试连接服务器数据端口 {SERVER_IP}:{DATA_PORT} ...")
+        data_sock.connect((SERVER_IP, DATA_PORT))
+        logging.debug(f"连接服务器数据端口成功，发送握手信息...")
+        data_sock.sendall(f"{CLIENT_ID} {proxy_port}\n".encode())
+        logging.info(f"数据通道已建立 -> {proxy_port}")
+    except Exception as e:
+        logging.error(f"无法建立数据通道: {e}")
+        logging.error(traceback.format_exc())
+        local.close()
+        return
+    threading.Thread(target=forward, args=(data_sock, local, "srv->local"), daemon=True).start()
+    threading.Thread(target=forward, args=(local, data_sock, "local->srv"), daemon=True).start()
+
+def listen_control():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((SERVER_IP, CONTROL_PORT))
+    sock.sendall((CLIENT_ID + '\n').encode())
+    logging.info("已连接控制通道")
+    try:
+        while True:
+            data = sock.recv(1024)
+            if not data:
+                break
+            cmd = data.decode().strip()
+            logging.debug(f"控制通道接收: {cmd}")
+            if cmd.startswith('NEW_CONN'):
+                _, port = cmd.split()
+                port = int(port)
+                logging.info(f"收到新连接请求 {port}")
+                threading.Thread(target=handle_new_conn, args=(port,), daemon=True).start()
+    finally:
+        sock.close()
+        logging.info("控制通道关闭")
+
+if __name__ == '__main__':
+    listen_control()
