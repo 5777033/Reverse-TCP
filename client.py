@@ -5,7 +5,7 @@ from cryptography.fernet import Fernet
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')
 
-SERVER_IP = '1.92.112.181'   # 替换成你的服务器公网IP
+SERVER_IP = 'your server ip'   # 替换成你的服务器公网IP
 SERVER_PORT = 6000
 CLIENT_ID = 'client1'
 PROXY_TO_LOCAL_PORT = {
