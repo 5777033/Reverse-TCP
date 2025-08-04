@@ -10,7 +10,7 @@ SERVER_PORT = 6000
 CLIENT_ID = 'client1'
 PROXY_TO_LOCAL_PORT = {6001: 22, 6002: 80}
 
-FERNET_KEY = b'6aUXWau3OKQ5mV-M5g5CkZep_t8XzxxUQ_G8GgpNto='  # 与服务器端一致
+FERNET_KEY = b'6aUXWau3OKQ5mV-M5g5CkZxep_t8XzxxUQ_G8GgpNto='  # 与服务器端一致
 cipher = Fernet(FERNET_KEY)
 
 
